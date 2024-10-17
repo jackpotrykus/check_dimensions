@@ -34,3 +34,10 @@ expects_3_3(X)
 # This raises an error
 expects_3_3(W)
 ```
+
+Why `check_dimensions`? There's usually an error anyways.
+
+* Sometimes there isn't an error.
+* Ability to enforce exact or (coming soon) ranges of dimensions with a simple decorator.
+* Catch incompatible shapes immediately, before any expensive intermediate calculation.
+* Make your code self-documenting.
