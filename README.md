@@ -3,13 +3,19 @@
 Easily check dimensions of arrays and arraylikes with a simple decorator
 
 ```python
-@check_dimensions(X="n, p", y="n")
+import numpy as np
+
+from check_shape import args
+
+
+@args(X="n, p", y="n").returns("p")
 def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarray:
     return np.linalg.inv(X.T @ X) @ X.T @ y
 
 
-@check_dimensions(X="3, 3")
-def expects_3_3(X: np.ndarray) -> None: ...
+@args(X="3, 3").returns("3, 3")
+def expects_3_3(X: np.ndarray) -> None:
+    return X
 
 
 # X has shape (3, 3) and y has shape (3,)
