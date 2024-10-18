@@ -121,7 +121,7 @@ def get_shape_of_object(object: Any) -> tuple[int]:
 
 
 def _check_shapes(
-    f: Callable[P, T], shape_spec_by_kwarg: dict[str, RawShapeSpec] | None, return_spec: RawShapeSpec | None
+    f: Callable[P, T], shape_spec_by_kwarg: dict[str, RawShapeSpec] | None, return_spec: tuple[RawShapeSpec, ...] | None
 ) -> Callable[P, T]:
     def create_dictionary_of_values_by_kwarg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> dict[str, Any]:
         return {**{k: v for k, v in zip(f.__code__.co_varnames, args)}, **kwargs}
@@ -138,7 +138,13 @@ def _check_shapes(
 
         res = f(*args, **kwargs)
         if return_spec is not None:
-            validate_shape_spec({"return": return_spec}, {"return": get_shape_of_object(res)})
+            try:
+                return_tuple = tuple(res)  # type: ignore
+            except TypeError:
+                return_tuple = tuple([res])
+            raw_shape_spec_by_return_idx = {str(idx): raw_shape_spec for idx, raw_shape_spec in enumerate(return_spec)}
+            shape_by_return_idx = {str(idx): get_shape_of_object(res) for idx, res in enumerate(return_tuple)}
+            validate_shape_spec(raw_shape_spec_by_return_idx, shape_by_return_idx)
         return res
 
     return wrapper
@@ -147,13 +153,13 @@ def _check_shapes(
 @dataclass
 class ShapeChecker:
     shape_spec_by_kwarg: dict[str, RawShapeSpec] | None = None
-    return_spec: RawShapeSpec | None = None
+    return_spec: tuple[RawShapeSpec, ...] | None = None
 
     def args(self, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
         self.shape_spec_by_kwarg = shape_spec_by_kwarg
         return self
 
-    def returns(self, shape_spec: RawShapeSpec) -> Self:
+    def returns(self, *shape_spec: RawShapeSpec) -> Self:
         self.return_spec = shape_spec
         return self
 
@@ -165,5 +171,5 @@ def args(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker(shape_spec_by_kwarg=shape_spec_by_kwarg)
 
 
-def returns(shape_spec: RawShapeSpec) -> ShapeChecker:
+def returns(*shape_spec: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker(return_spec=shape_spec)
