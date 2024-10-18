@@ -14,7 +14,7 @@ def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarra
 
 
 @args(X="3, 3").returns("3, 3")
-def expects_3_3(X: np.ndarray) -> None:
+def expects_3_3(X: np.ndarray) -> np.ndarray:
     return X
 
 
