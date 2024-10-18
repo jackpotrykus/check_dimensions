@@ -27,12 +27,11 @@ y = np.array([1, 2, 4])
 b = calculate_regression_coefficients(X, y)
 print(b)
 
-# Here, W has shape (4, 3) and y has shape (3,)
+# Here, W has shape (4, 3)
 W = np.array([[1, 2, 4], [4, 5, 5], [7, 8, 10], [1, 2, 4]])
-t = np.array([1, 2, 4])
 
 # This raises an IncompatibleDimensionError
-a = calculate_regression_coefficients(W, t)
+a = calculate_regression_coefficients(W, y)
 
 # Can also specify axis dimensions precisely
 expects_3_3(X)
