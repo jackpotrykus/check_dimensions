@@ -16,8 +16,17 @@ def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarra
 
 # Specify the exact dimensions of inputs and outputs
 @args(X=(3, 3)).returns((3, 3))
-def expects_3_3(X: np.ndarray) -> np.ndarray:
+def identity_3_3(X: np.ndarray) -> np.ndarray:
     return X
+
+# Can specify just the args, or just the return
+@args(X=(3, 3))
+def take_3_3_return_nothing(X: np.ndarray):
+    return
+
+@returns((3, 3))
+def take_nothing_return_3_3() -> np.ndarray:
+    return np.eye(3)
 
 
 # X has shape (3, 3) and y has shape (3,)
@@ -34,10 +43,10 @@ W = np.array([[1, 2, 4], [4, 5, 5], [7, 8, 10], [1, 2, 4]])
 a = calculate_regression_coefficients(W, y)
 
 # Can also specify axis dimensions precisely
-expects_3_3(X)
+identity_3_3(X)
 
 # This raises an error
-expects_3_3(W)
+identity_3_3(W)
 ```
 
 Why `check_shapes`? There's usually an error anyways.
