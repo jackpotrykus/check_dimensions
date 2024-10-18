@@ -5,26 +5,26 @@ Easily check shapes of arrays and arraylikes with a simple decorator
 ```python
 import numpy as np
 
-from check_shapes import args, returns
+import check_shapes as chk
 
 
 # Supports symbolic/dynamic axis dimensions
-@args(X=("n", "p"), y=("n",)).returns(("p",))
+@chk.args(X=("n", "p"), y=("n",)).returns(("p",))
 def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarray:
     return np.linalg.inv(X.T @ X) @ X.T @ y
 
 
 # Specify the exact dimensions of inputs and outputs
-@args(X=(3, 3)).returns((3, 3))
+@chk.args(X=(3, 3)).returns((3, 3))
 def identity_3_3(X: np.ndarray) -> np.ndarray:
     return X
 
 # Can specify just the args, or just the return
-@args(X=(3, 3))
+@chk.args(X=(3, 3))
 def take_3_3_return_nothing(X: np.ndarray):
     return
 
-@returns((3, 3))
+@chk.returns((3, 3))
 def take_nothing_return_3_3() -> np.ndarray:
     return np.eye(3)
 
