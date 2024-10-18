@@ -1,4 +1,4 @@
-# check_dimensions
+# check_shapes
 
 Easily check dimensions of arrays and arraylikes with a simple decorator
 
