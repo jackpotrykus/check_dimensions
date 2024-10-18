@@ -57,7 +57,7 @@ def validate_dimension_spec_against_arguments(dimension_spec_by_kwarg: dict[str,
             raise KeyError(f"Expected keyword argument {kwarg} but it was not provided")
 
 
-def check_dimensions(**dimension_spec_by_kwarg: dict[str, str]) -> Callable[P, T]:
+def check_shape(**dimension_spec_by_kwarg: dict[str, str]) -> Callable[P, T]:
     # TODO: Obviously delete...
     print(get_unique_syms_from_dictionary_of_specs(dimension_spec_by_kwarg))
     def decorator(f: Callable[P, T]) -> Callable[P, T]:
