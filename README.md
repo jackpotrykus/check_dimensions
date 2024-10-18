@@ -5,7 +5,7 @@ Easily check dimensions of arrays and arraylikes with a simple decorator
 ```python
 import numpy as np
 
-from check_shape import args
+from check_shapes import args
 
 
 @args(X="n, p", y="n").returns("p")
