@@ -12,13 +12,13 @@ class IncompatibleDimensionError(Exception):
     pass
 
 
-def create_dictionary_of_values_by_argument(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> dict[str, Any]:
+def create_dictionary_of_values_by_kwarg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> dict[str, Any]:
     return {**{k: v for k, v in zip(f.__code__.co_varnames, args)}, **kwargs}
 
 
 @dataclass
-class Symbol(metaclass=ABCMeta):
-    symbol: Any
+class DimensionSpec(metaclass=ABCMeta):
+    spec: Any
 
     @abstractmethod
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
@@ -30,58 +30,56 @@ class Symbol(metaclass=ABCMeta):
 
 
 @dataclass
-class Constant(Symbol):
-    symbol: int
+class ConstantSpec(DimensionSpec):
+    spec: int
 
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
-        return self.symbol == axis_dimension
+        return self.spec == axis_dimension
 
     def create_error(self, axis_dimension: int, kwarg: str, value_by_sym: dict[str, int]) -> IncompatibleDimensionError:
         return IncompatibleDimensionError(
             # f"Expected dimension {self.value} but got {axis_dimension}"
-            f"Expected dimension {self.symbol} in {kwarg} to have dimension {self.symbol} but got {axis_dimension}"
+            f"Expected dimension {self.spec} in {kwarg} to have dimension {self.spec} but got {axis_dimension}"
         )
 
 
 @dataclass
-class Variable(Symbol):
-    symbol: str
+class SymbolSpec(DimensionSpec):
+    spec: str
 
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
-        target_dim = value_by_sym.get(self.symbol, None)
+        target_dim = value_by_sym.get(self.spec, None)
         if target_dim is None:
-            value_by_sym[self.symbol] = axis_dimension
+            value_by_sym[self.spec] = axis_dimension
             return True
         return axis_dimension == target_dim
 
     def create_error(self, axis_dimension: int, kwarg: str, value_by_sym: dict[str, int]) -> IncompatibleDimensionError:
         return IncompatibleDimensionError(
-            f"Expected dimension {self.symbol} in {kwarg} to have dimension {value_by_sym[self.symbol]} but got {axis_dimension}"
+            f"Expected dimension {self.spec} in {kwarg} to have dimension {value_by_sym[self.spec]} but got {axis_dimension}"
         )
 
 
 def check_kwarg_dimensions_against_spec(
     dimension_spec_by_kwarg: dict[str, str], dimension_by_kwarg: dict[str, tuple[int]]
 ) -> None:
-    # unique_syms = get_unique_syms_from_dictionary_of_specs(dimension_spec_by_kwarg)
-    # NOTE: Any constants (e.g. "3") will have empty values in this dictionary
-    # Can easily be removed altogether but unnecessary also
-    # value_by_sym = {sym: None for sym in unique_syms}
-    value_by_sym: dict[str, int | None] = defaultdict(lambda: None)
+    # NOTE: type ignore below because anytime a lookup resulting in ``None``
+    # occurs, we immediately add a corresponding entry
+    value_by_sym: dict[str, int] = defaultdict(lambda: None)  # type: ignore
 
-    def parse_sym(sym: str) -> Symbol:
+    def parse_spec(symbol: str) -> DimensionSpec:
         try:
-            int_sym = int(sym)
-            return Constant(int_sym)
+            int_sym = int(symbol)
+            return ConstantSpec(int_sym)
         except ValueError:
-            return Variable(sym)
+            return SymbolSpec(symbol)
 
     for kwarg, dimensions in dimension_by_kwarg.items():
-        for axis_dimension, sym in zip(dimensions, dimension_spec_by_kwarg[kwarg].split(",")):
-            sym = parse_sym(sym)
+        for axis_dimension, symbol in zip(dimensions, dimension_spec_by_kwarg[kwarg].split(",")):
+            spec = parse_spec(symbol)
 
-            if not sym.validate(axis_dimension, value_by_sym):
-                raise sym.create_error(axis_dimension, kwarg, value_by_sym)
+            if not spec.validate(axis_dimension, value_by_sym):
+                raise spec.create_error(axis_dimension, kwarg, value_by_sym)
 
     # TODO: obviously delete...
     print(value_by_sym)
@@ -110,7 +108,7 @@ def _check_shapes(
 ) -> Callable[P, T]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if dimension_spec_by_kwarg is not None:
-            value_by_kwarg = create_dictionary_of_values_by_argument(f, *args, **kwargs)
+            value_by_kwarg = create_dictionary_of_values_by_kwarg(f, *args, **kwargs)
             # Validate the supplied dimension spec against the supplied arguments
             validate_dimension_spec(dimension_spec_by_kwarg, value_by_kwarg)
 
@@ -140,7 +138,6 @@ class ShapeChecker:
         return self
 
     def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
-        assert self.dimension_spec_by_kwarg is not None
         return _check_shapes(f, self.dimension_spec_by_kwarg, self.return_spec)
 
 
