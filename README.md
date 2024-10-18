@@ -13,7 +13,6 @@ import check_shapes as chk
 def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarray:
     return np.linalg.inv(X.T @ X) @ X.T @ y
 
-
 # Specify the exact dimensions of inputs and outputs
 @chk.args(X=(3, 3)).returns((3, 3))
 def identity_3_3(X: np.ndarray) -> np.ndarray:
