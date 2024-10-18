@@ -16,7 +16,6 @@ def create_dictionary_of_values_by_argument(f: Callable[P, T], *args: P.args, **
     return {**{k: v for k, v in zip(f.__code__.co_varnames, args)}, **kwargs}
 
 
-
 @dataclass
 class Symbol(metaclass=ABCMeta):
     symbol: Any
@@ -24,24 +23,26 @@ class Symbol(metaclass=ABCMeta):
     @abstractmethod
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
         raise NotImplementedError
-    
+
     @abstractmethod
     def create_error(self, axis_dimension: int, kwarg: str, value_by_sym: dict[str, int]) -> IncompatibleDimensionError:
         raise NotImplementedError
-    
+
+
 @dataclass
 class Constant(Symbol):
     symbol: int
 
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
         return self.symbol == axis_dimension
-    
+
     def create_error(self, axis_dimension: int, kwarg: str, value_by_sym: dict[str, int]) -> IncompatibleDimensionError:
         return IncompatibleDimensionError(
             # f"Expected dimension {self.value} but got {axis_dimension}"
             f"Expected dimension {self.symbol} in {kwarg} to have dimension {self.symbol} but got {axis_dimension}"
         )
-    
+
+
 @dataclass
 class Variable(Symbol):
     symbol: str
@@ -52,7 +53,7 @@ class Variable(Symbol):
             value_by_sym[self.symbol] = axis_dimension
             return True
         return axis_dimension == target_dim
-                    
+
     def create_error(self, axis_dimension: int, kwarg: str, value_by_sym: dict[str, int]) -> IncompatibleDimensionError:
         return IncompatibleDimensionError(
             f"Expected dimension {self.symbol} in {kwarg} to have dimension {value_by_sym[self.symbol]} but got {axis_dimension}"
@@ -90,7 +91,7 @@ def validate_dimension_spec(dimension_spec_by_kwarg: dict[str, str], value_by_kw
     for kwarg in dimension_spec_by_kwarg:
         if kwarg not in value_by_kwarg:
             raise KeyError(f"Expected keyword argument {kwarg} but it was not provided")
-        
+
 
 def parse_shape(object: Any) -> tuple[int]:
     if hasattr(object, "shape"):
@@ -104,7 +105,9 @@ def parse_shape(object: Any) -> tuple[int]:
     raise ValueError(f"Cannot parse shape of {object}")
 
 
-def _check_shapes(f: Callable[P, T], dimension_spec_by_kwarg: dict[str, str] | None, return_spec: str | None) -> Callable[P, T]:
+def _check_shapes(
+    f: Callable[P, T], dimension_spec_by_kwarg: dict[str, str] | None, return_spec: str | None
+) -> Callable[P, T]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if dimension_spec_by_kwarg is not None:
             value_by_kwarg = create_dictionary_of_values_by_argument(f, *args, **kwargs)
@@ -131,7 +134,7 @@ class ShapeChecker:
     def args(self, **dimension_spec_by_kwarg: str) -> Self:
         self.dimension_spec_by_kwarg = dimension_spec_by_kwarg
         return self
-    
+
     def returns(self, dimension_spec: str) -> Self:
         self.return_spec = dimension_spec
         return self
@@ -143,6 +146,7 @@ class ShapeChecker:
 
 def args(**dimension_spec_by_kwarg: str) -> ShapeChecker:
     return ShapeChecker(dimension_spec_by_kwarg=dimension_spec_by_kwarg)
+
 
 def returns(dimension_spec: str) -> ShapeChecker:
     return ShapeChecker(return_spec=dimension_spec)
