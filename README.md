@@ -52,6 +52,6 @@ identity_3_3(W)
 Why `check_shapes`? There's usually an error anyways.
 
 * Sometimes there isn't an error.
-* Ability to enforce exact or (coming soon) ranges of dimensions with a simple decorator.
 * Catch incompatible shapes immediately, before any expensive intermediate calculation.
+* Utilize defensive programming.
 * Make your code self-documenting.
