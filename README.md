@@ -5,7 +5,7 @@ Easily check shapes of arrays and arraylikes with a simple decorator
 ```python
 import numpy as np
 
-from check_shapes import args
+from check_shapes import args, returns
 
 
 # Supports symbolic/dynamic axis dimensions
