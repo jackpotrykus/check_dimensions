@@ -6,6 +6,9 @@ from typing import Any, Callable, TypeVar, ParamSpec, Self
 T = TypeVar("T")
 P = ParamSpec("P")
 
+AxisLengthSpecifier = str | int
+ShapeSpecifier = tuple[AxisLengthSpecifier, ...]
+
 
 class IncompatibleDimensionError(Exception):
     pass
@@ -16,7 +19,7 @@ def create_dictionary_of_values_by_kwarg(f: Callable[P, T], *args: P.args, **kwa
 
 
 @dataclass
-class DimensionSpec(metaclass=ABCMeta):
+class AxisSpec(metaclass=ABCMeta):
     spec: Any
 
     @abstractmethod
@@ -29,7 +32,7 @@ class DimensionSpec(metaclass=ABCMeta):
 
 
 @dataclass
-class ConstantSpec(DimensionSpec):
+class ConstantSpec(AxisSpec):
     spec: int
 
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
@@ -43,7 +46,7 @@ class ConstantSpec(DimensionSpec):
 
 
 @dataclass
-class SymbolSpec(DimensionSpec):
+class SymbolSpec(AxisSpec):
     spec: str
 
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
@@ -59,21 +62,23 @@ class SymbolSpec(DimensionSpec):
             f"Expected dimension {self.spec} in {kwarg} to have dimension {value_by_sym[self.spec]} but got {axis_dimension}"
         )
 
+def parse_axis_length_specifier_to_axis_spec(symbol: AxisLengthSpecifier) -> AxisSpec:
+    spec_by_type = {
+        int: ConstantSpec,
+        str: SymbolSpec,
+    }
+    for type_, spec in spec_by_type.items():
+        if isinstance(symbol, type_):
+            return spec(symbol)
+    raise ValueError(f"Cannot parse axis length specifier {symbol}, expected one of {','.join(str(s) for s in spec_by_type.keys())}")
 
 def check_kwarg_dimensions_against_spec(
-    dimension_spec_by_kwarg: dict[str, str], dimension_by_kwarg: dict[str, tuple[int]]
+    dimension_spec_by_kwarg: dict[str, ShapeSpecifier], dimension_by_kwarg: dict[str, tuple[int]]
 ) -> None:
     value_by_sym: dict[str, int] = {}
-
-    def parse_spec(symbol: str) -> DimensionSpec:
-        try:
-            int_sym = int(symbol)
-            return ConstantSpec(int_sym)
-        except ValueError:
-            return SymbolSpec(symbol)
         
-    def create_list_of_specs(dimension_spec: str) -> list[DimensionSpec]:
-        return [parse_spec(spec) for spec in dimension_spec.split(",")]
+    def create_list_of_specs(dimension_spec: ShapeSpecifier) -> list[AxisSpec]:
+        return [parse_axis_length_specifier_to_axis_spec(spec) for spec in dimension_spec]
 
     for kwarg, dimensions in dimension_by_kwarg.items():
         for axis_dimension, spec in zip(dimensions, create_list_of_specs(dimension_spec_by_kwarg[kwarg])):
@@ -84,7 +89,7 @@ def check_kwarg_dimensions_against_spec(
     print(value_by_sym)
 
 
-def validate_dimension_spec(dimension_spec_by_kwarg: dict[str, str], value_by_kwarg: dict[str, Any]) -> None:
+def validate_dimension_spec(dimension_spec_by_kwarg: dict[str, ShapeSpecifier], value_by_kwarg: dict[str, Any]) -> None:
     for kwarg in dimension_spec_by_kwarg:
         if kwarg not in value_by_kwarg:
             raise KeyError(f"Expected keyword argument {kwarg} but it was not provided")
@@ -103,7 +108,7 @@ def parse_shape(object: Any) -> tuple[int]:
 
 
 def _check_shapes(
-    f: Callable[P, T], dimension_spec_by_kwarg: dict[str, str] | None, return_spec: str | None
+    f: Callable[P, T], dimension_spec_by_kwarg: dict[str, ShapeSpecifier] | None, return_spec: ShapeSpecifier | None
 ) -> Callable[P, T]:
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if dimension_spec_by_kwarg is not None:
@@ -125,14 +130,14 @@ def _check_shapes(
 
 @dataclass
 class ShapeChecker:
-    dimension_spec_by_kwarg: dict[str, str] | None = None
-    return_spec: str | None = None
+    dimension_spec_by_kwarg: dict[str, ShapeSpecifier] | None = None
+    return_spec: ShapeSpecifier | None = None
 
-    def args(self, **dimension_spec_by_kwarg: str) -> Self:
+    def args(self, **dimension_spec_by_kwarg: ShapeSpecifier) -> Self:
         self.dimension_spec_by_kwarg = dimension_spec_by_kwarg
         return self
 
-    def returns(self, dimension_spec: str) -> Self:
+    def returns(self, dimension_spec: ShapeSpecifier) -> Self:
         self.return_spec = dimension_spec
         return self
 
@@ -140,9 +145,9 @@ class ShapeChecker:
         return _check_shapes(f, self.dimension_spec_by_kwarg, self.return_spec)
 
 
-def args(**dimension_spec_by_kwarg: str) -> ShapeChecker:
+def args(**dimension_spec_by_kwarg: ShapeSpecifier) -> ShapeChecker:
     return ShapeChecker(dimension_spec_by_kwarg=dimension_spec_by_kwarg)
 
 
-def returns(dimension_spec: str) -> ShapeChecker:
+def returns(dimension_spec: ShapeSpecifier) -> ShapeChecker:
     return ShapeChecker(return_spec=dimension_spec)

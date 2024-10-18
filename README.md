@@ -1,6 +1,6 @@
 # check_shapes
 
-Easily check dimensions of arrays and arraylikes with a simple decorator
+Easily check shapes of arrays and arraylikes with a simple decorator
 
 ```python
 import numpy as np
@@ -8,12 +8,12 @@ import numpy as np
 from check_shapes import args
 
 
-@args(X="n, p", y="n").returns("p")
+@args(X=("n", "p"), y=("n",)).returns(("p",))
 def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarray:
     return np.linalg.inv(X.T @ X) @ X.T @ y
 
 
-@args(X="3, 3").returns("3, 3")
+@args(X=(3, 3)).returns((3, 3))
 def expects_3_3(X: np.ndarray) -> np.ndarray:
     return X
 
