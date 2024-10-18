@@ -1,5 +1,4 @@
 from abc import ABCMeta, abstractmethod
-from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any, Callable, TypeVar, ParamSpec, Self
 
@@ -48,10 +47,11 @@ class SymbolSpec(DimensionSpec):
     spec: str
 
     def validate(self, axis_dimension: int, value_by_sym: dict[str, int]) -> bool:
-        target_dim = value_by_sym.get(self.spec, None)
-        if target_dim is None:
+        if self.spec not in value_by_sym:
             value_by_sym[self.spec] = axis_dimension
             return True
+
+        target_dim = value_by_sym[self.spec]
         return axis_dimension == target_dim
 
     def create_error(self, axis_dimension: int, kwarg: str, value_by_sym: dict[str, int]) -> IncompatibleDimensionError:
@@ -63,9 +63,7 @@ class SymbolSpec(DimensionSpec):
 def check_kwarg_dimensions_against_spec(
     dimension_spec_by_kwarg: dict[str, str], dimension_by_kwarg: dict[str, tuple[int]]
 ) -> None:
-    # NOTE: type ignore below because anytime a lookup resulting in ``None``
-    # occurs, we immediately add a corresponding entry
-    value_by_sym: dict[str, int] = defaultdict(lambda: None)  # type: ignore
+    value_by_sym: dict[str, int] = {}
 
     def parse_spec(symbol: str) -> DimensionSpec:
         try:
@@ -73,11 +71,12 @@ def check_kwarg_dimensions_against_spec(
             return ConstantSpec(int_sym)
         except ValueError:
             return SymbolSpec(symbol)
+        
+    def create_list_of_specs(dimension_spec: str) -> list[DimensionSpec]:
+        return [parse_spec(spec) for spec in dimension_spec.split(",")]
 
     for kwarg, dimensions in dimension_by_kwarg.items():
-        for axis_dimension, symbol in zip(dimensions, dimension_spec_by_kwarg[kwarg].split(",")):
-            spec = parse_spec(symbol)
-
+        for axis_dimension, spec in zip(dimensions, create_list_of_specs(dimension_spec_by_kwarg[kwarg])):
             if not spec.validate(axis_dimension, value_by_sym):
                 raise spec.create_error(axis_dimension, kwarg, value_by_sym)
 
