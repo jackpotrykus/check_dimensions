@@ -9,9 +9,7 @@ def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarra
 
 
 @check_dimensions(X="3, 3")
-def expects_3_3(X: np.ndarray) -> None:
-    if X.shape != (3, 3):
-        raise ValueError("Expected a 3x3 matrix")
+def expects_3_3(X: np.ndarray) -> None: ...
 
 
 # X has shape (3, 3) and y has shape (3,)
