@@ -62,6 +62,7 @@ class SymbolSpec(AxisSpec):
             f"Expected dimension {self.spec} in {kwarg} to have dimension {value_by_sym[self.spec]} but got {axis_dimension}"
         )
 
+
 def parse_axis_length_specifier_to_axis_spec(symbol: AxisLengthSpecifier) -> AxisSpec:
     spec_by_type = {
         int: ConstantSpec,
@@ -70,13 +71,16 @@ def parse_axis_length_specifier_to_axis_spec(symbol: AxisLengthSpecifier) -> Axi
     for type_, spec in spec_by_type.items():
         if isinstance(symbol, type_):
             return spec(symbol)
-    raise ValueError(f"Cannot parse axis length specifier {symbol}, expected one of {','.join(str(s) for s in spec_by_type.keys())}")
+    raise ValueError(
+        f"Cannot parse axis length specifier {symbol}, expected one of {','.join(str(s) for s in spec_by_type.keys())}"
+    )
+
 
 def check_kwarg_shapes_against_spec(
     shape_spec_by_kwarg: dict[str, ShapeSpecifier], shape_by_kwarg: dict[str, tuple[int]]
 ) -> None:
     value_by_sym: dict[str, int] = {}
-        
+
     def create_list_of_specs(shape_spec: ShapeSpecifier) -> list[AxisSpec]:
         return [parse_axis_length_specifier_to_axis_spec(axis) for axis in shape_spec]
 
