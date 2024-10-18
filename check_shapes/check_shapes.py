@@ -155,6 +155,9 @@ class ShapeChecker:
     shape_spec_by_kwarg: dict[str, RawShapeSpec] | None = None
     return_spec: tuple[RawShapeSpec, ...] | None = None
 
+    def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
+        return _check_shapes(f, self.shape_spec_by_kwarg, self.return_spec)
+
     def args(self, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
         self.shape_spec_by_kwarg = shape_spec_by_kwarg
         return self
@@ -162,9 +165,6 @@ class ShapeChecker:
     def returns(self, *shape_spec: RawShapeSpec) -> Self:
         self.return_spec = shape_spec
         return self
-
-    def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
-        return _check_shapes(f, self.shape_spec_by_kwarg, self.return_spec)
 
 
 def args(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
