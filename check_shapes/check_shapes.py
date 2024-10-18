@@ -6,15 +6,15 @@ from typing import Any, Callable, TypeVar, ParamSpec, Self
 T = TypeVar("T")
 P = ParamSpec("P")
 
-AxisLengthSpecifier = str | int
-ShapeSpecifier = tuple[AxisLengthSpecifier, ...]
+RawAxisSpec = str | int
+RawShapeSpec = tuple[RawAxisSpec, ...]
 
 
 class IncompatibleShapeError(Exception):
     pass
 
 
-@dataclass
+@dataclass(frozen=True)
 class AxisSpec(metaclass=ABCMeta):
     spec: Any
 
@@ -29,7 +29,7 @@ class AxisSpec(metaclass=ABCMeta):
         raise NotImplementedError
 
 
-@dataclass
+@dataclass(frozen=True)
 class ConstantSpec(AxisSpec):
     spec: int
 
@@ -45,7 +45,7 @@ class ConstantSpec(AxisSpec):
         )
 
 
-@dataclass
+@dataclass(frozen=True)
 class SymbolSpec(AxisSpec):
     spec: str
 
@@ -65,7 +65,7 @@ class SymbolSpec(AxisSpec):
         )
 
 
-def parse_axis_length_specifier_to_axis_spec(symbol: AxisLengthSpecifier) -> AxisSpec:
+def parse_raw_axis_spec_to_axis_spec(symbol: RawAxisSpec) -> AxisSpec:
     spec_by_type = {
         int: ConstantSpec,
         str: SymbolSpec,
@@ -79,29 +79,36 @@ def parse_axis_length_specifier_to_axis_spec(symbol: AxisLengthSpecifier) -> Axi
 
 
 def check_kwarg_shapes_against_spec(
-    shape_spec_by_kwarg: dict[str, ShapeSpecifier], shape_by_kwarg: dict[str, tuple[int]]
+    shape_spec_by_kwarg: dict[str, RawShapeSpec], shape_by_kwarg: dict[str, tuple[int]]
 ) -> None:
     dimension_by_symbol_spec: dict[str, int] = {}
 
-    def create_list_of_specs(shape_spec: ShapeSpecifier) -> list[AxisSpec]:
-        return [parse_axis_length_specifier_to_axis_spec(axis) for axis in shape_spec]
+    def validate_shape_spec(shape_spec: RawShapeSpec, shape: tuple[int]) -> None:
+        if len(shape_spec) != len(shape):
+            raise IncompatibleShapeError(f"Length of {shape_spec=} does not match length of {shape=}")
 
-    for kwarg, shape in shape_by_kwarg.items():
-        for axis_dimension, axis_spec in zip(shape, create_list_of_specs(shape_spec_by_kwarg[kwarg])):
+        def parse_raw_shape_spec_to_list_axis_spec(shape_spec: RawShapeSpec) -> list[AxisSpec]:
+            return [parse_raw_axis_spec_to_axis_spec(axis) for axis in shape_spec]
+
+        for axis_dimension, axis_spec in zip(shape, parse_raw_shape_spec_to_list_axis_spec(shape_spec)):
             if not axis_spec.validate(axis_dimension, dimension_by_symbol_spec):
                 raise axis_spec.create_error(axis_dimension, kwarg, dimension_by_symbol_spec)
+
+    for kwarg, shape in shape_by_kwarg.items():
+        raw_shape_spec = shape_spec_by_kwarg[kwarg]
+        validate_shape_spec(raw_shape_spec, shape)
 
     # TODO: obviously delete...
     print(dimension_by_symbol_spec)
 
 
-def validate_shape_spec(shape_spec_by_kwarg: dict[str, ShapeSpecifier], value_by_kwarg: dict[str, Any]) -> None:
+def validate_shape_spec(shape_spec_by_kwarg: dict[str, RawShapeSpec], value_by_kwarg: dict[str, Any]) -> None:
     for kwarg in shape_spec_by_kwarg:
         if kwarg not in value_by_kwarg:
             raise KeyError(f"Expected keyword argument {kwarg} but it was not provided")
 
 
-def parse_shape(object: Any) -> tuple[int]:
+def get_shape_of_object(object: Any) -> tuple[int]:
     if hasattr(object, "shape"):
         return object.shape
     if hasattr(object, "__len__"):
@@ -114,7 +121,7 @@ def parse_shape(object: Any) -> tuple[int]:
 
 
 def _check_shapes(
-    f: Callable[P, T], shape_spec_by_kwarg: dict[str, ShapeSpecifier] | None, return_spec: ShapeSpecifier | None
+    f: Callable[P, T], shape_spec_by_kwarg: dict[str, RawShapeSpec] | None, return_spec: RawShapeSpec | None
 ) -> Callable[P, T]:
     def create_dictionary_of_values_by_kwarg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> dict[str, Any]:
         return {**{k: v for k, v in zip(f.__code__.co_varnames, args)}, **kwargs}
@@ -126,12 +133,12 @@ def _check_shapes(
             validate_shape_spec(shape_spec_by_kwarg, value_by_kwarg)
 
             arraylike_by_kwarg = {k: value_by_kwarg[k] for k in shape_spec_by_kwarg}
-            shape_by_kwarg = {k: parse_shape(v) for k, v in arraylike_by_kwarg.items()}
+            shape_by_kwarg = {k: get_shape_of_object(v) for k, v in arraylike_by_kwarg.items()}
             check_kwarg_shapes_against_spec(shape_spec_by_kwarg, shape_by_kwarg)
 
         res = f(*args, **kwargs)
         if return_spec is not None:
-            validate_shape_spec({"return": return_spec}, {"return": parse_shape(res)})
+            validate_shape_spec({"return": return_spec}, {"return": get_shape_of_object(res)})
         return res
 
     return wrapper
@@ -139,14 +146,14 @@ def _check_shapes(
 
 @dataclass
 class ShapeChecker:
-    shape_spec_by_kwarg: dict[str, ShapeSpecifier] | None = None
-    return_spec: ShapeSpecifier | None = None
+    shape_spec_by_kwarg: dict[str, RawShapeSpec] | None = None
+    return_spec: RawShapeSpec | None = None
 
-    def args(self, **shape_spec_by_kwarg: ShapeSpecifier) -> Self:
+    def args(self, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
         self.shape_spec_by_kwarg = shape_spec_by_kwarg
         return self
 
-    def returns(self, shape_spec: ShapeSpecifier) -> Self:
+    def returns(self, shape_spec: RawShapeSpec) -> Self:
         self.return_spec = shape_spec
         return self
 
@@ -154,9 +161,9 @@ class ShapeChecker:
         return _check_shapes(f, self.shape_spec_by_kwarg, self.return_spec)
 
 
-def args(**shape_spec_by_kwarg: ShapeSpecifier) -> ShapeChecker:
+def args(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker(shape_spec_by_kwarg=shape_spec_by_kwarg)
 
 
-def returns(shape_spec: ShapeSpecifier) -> ShapeChecker:
+def returns(shape_spec: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker(return_spec=shape_spec)
