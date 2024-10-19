@@ -29,7 +29,7 @@ class ConstantSpec(AxisSpec):
         return self.spec == axis_dimension
 
     def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict 
+        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict
     ) -> IncompatibleShapeError:
         return IncompatibleShapeError(
             f"Expected dimension {self.spec} in {kwarg} to have dimension {self.spec} but got {axis_dimension}"
