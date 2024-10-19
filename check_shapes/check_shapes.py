@@ -102,12 +102,6 @@ def check_kwarg_shapes_against_spec(
     print(dimension_by_symbol_spec)
 
 
-def validate_shape_spec(shape_spec_by_kwarg: dict[str, RawShapeSpec], value_by_kwarg: dict[str, Any]) -> None:
-    for kwarg in shape_spec_by_kwarg:
-        if kwarg not in value_by_kwarg:
-            raise KeyError(f"Expected keyword argument {kwarg} but it was not provided")
-
-
 def get_shape_of_object(object: Any) -> tuple[int]:
     if hasattr(object, "shape"):
         return object.shape
@@ -129,22 +123,15 @@ def _check_shapes(
     def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
         if shape_spec_by_kwarg is not None:
             value_by_kwarg = create_dictionary_of_values_by_kwarg(f, *args, **kwargs)
-            # Validate the supplied shape spec against the supplied arguments
-            validate_shape_spec(shape_spec_by_kwarg, value_by_kwarg)
-
-            arraylike_by_kwarg = {k: value_by_kwarg[k] for k in shape_spec_by_kwarg}
-            shape_by_kwarg = {k: get_shape_of_object(v) for k, v in arraylike_by_kwarg.items()}
+            shape_by_kwarg = {k: get_shape_of_object(v) for k, v in value_by_kwarg.items()}
             check_kwarg_shapes_against_spec(shape_spec_by_kwarg, shape_by_kwarg)
 
         res = f(*args, **kwargs)
         if return_spec is not None:
-            try:
-                return_tuple = tuple(res)  # type: ignore
-            except TypeError:
-                return_tuple = tuple([res])
+            return_tuple = res if isinstance(res, tuple) else tuple([res])
             raw_shape_spec_by_return_idx = {str(idx): raw_shape_spec for idx, raw_shape_spec in enumerate(return_spec)}
             shape_by_return_idx = {str(idx): get_shape_of_object(res) for idx, res in enumerate(return_tuple)}
-            validate_shape_spec(raw_shape_spec_by_return_idx, shape_by_return_idx)
+            check_kwarg_shapes_against_spec(raw_shape_spec_by_return_idx, shape_by_return_idx)
         return res
 
     return wrapper
