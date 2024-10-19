@@ -6,6 +6,7 @@ P = ParamSpec("P")
 
 RawAxisSpec = str | int
 RawShapeSpec = tuple[RawAxisSpec, ...]
+DimensionBySymbolDict = dict[str, int]
 
 
 class IncompatibleShapeError(Exception):
@@ -13,10 +14,10 @@ class IncompatibleShapeError(Exception):
 
 
 class AxisSpec(Protocol):
-    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool: ...
+    def validate(self, axis_dimension: int, dimension_by_symbol_spec: DimensionBySymbolDict) -> bool: ...
 
     def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: dict[str, int]
+        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict
     ) -> IncompatibleShapeError: ...
 
 
@@ -24,11 +25,11 @@ class AxisSpec(Protocol):
 class ConstantSpec(AxisSpec):
     spec: int
 
-    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool:
+    def validate(self, axis_dimension: int, dimension_by_symbol_spec: DimensionBySymbolDict) -> bool:
         return self.spec == axis_dimension
 
     def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: dict[str, int]
+        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict 
     ) -> IncompatibleShapeError:
         return IncompatibleShapeError(
             f"Expected dimension {self.spec} in {kwarg} to have dimension {self.spec} but got {axis_dimension}"
@@ -39,7 +40,7 @@ class ConstantSpec(AxisSpec):
 class SymbolSpec(AxisSpec):
     spec: str
 
-    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool:
+    def validate(self, axis_dimension: int, dimension_by_symbol_spec: DimensionBySymbolDict) -> bool:
         if self.spec not in dimension_by_symbol_spec:
             dimension_by_symbol_spec[self.spec] = axis_dimension
             return True
@@ -48,7 +49,7 @@ class SymbolSpec(AxisSpec):
         return axis_dimension == target_dim
 
     def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: dict[str, int]
+        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict
     ) -> IncompatibleShapeError:
         return IncompatibleShapeError(
             f"Expected dimension {self.spec} in {kwarg} to have dimension {dimension_by_symbol_spec[self.spec]} but got {axis_dimension}"
@@ -73,7 +74,7 @@ class ShapeSpec:
     axes: tuple[AxisSpec, ...]
 
 
-DimensionBySymbolDict = dict[str, int]
+RawShapeSpecByIdDict = dict[Hashable, RawShapeSpec]
 ShapeSpecByIdDict = dict[Hashable, ShapeSpec]
 ShapeByIdDict = dict[Hashable, tuple[int]]
 
@@ -84,7 +85,7 @@ class ShapeSpecCollection:
     dimension_by_symbol_spec: DimensionBySymbolDict = field(default_factory=dict)
 
     @classmethod
-    def from_dict_of_raw_shape_specs(cls, raw_shape_specs_by_id: dict[Hashable, RawShapeSpec]) -> Self:
+    def from_dict_of_raw_shape_specs(cls, raw_shape_specs_by_id: RawShapeSpecByIdDict) -> Self:
         def parse_raw_shape_spec_to_shape_spec(
             raw_shape_spec: RawShapeSpec,
         ) -> ShapeSpec:
