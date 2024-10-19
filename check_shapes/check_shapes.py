@@ -168,17 +168,14 @@ class ShapeChecker:
         return self
 
     def returns(self, *shape_spec: RawShapeSpec) -> Self:
-        self.return_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs({idx: raw_spec for idx, raw_spec in enumerate(shape_spec)})  # type: ignore
+        raw_spec_by_idx = {idx: raw_spec for idx, raw_spec in enumerate(shape_spec)}
+        self.return_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(raw_spec_by_idx)  # type: ignore
         return self
 
 
 def args(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
-    shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(shape_spec_by_kwarg)  # type: ignore
-    return ShapeChecker(kwarg_shape_specs=shape_specs)
+    return ShapeChecker().args(**shape_spec_by_kwarg)
 
 
 def returns(*shape_spec: RawShapeSpec) -> ShapeChecker:
-    shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(
-        {idx: raw_spec for idx, raw_spec in enumerate(shape_spec)}
-    )
-    return ShapeChecker(return_shape_specs=shape_specs)
+    return ShapeChecker().returns(*shape_spec)
