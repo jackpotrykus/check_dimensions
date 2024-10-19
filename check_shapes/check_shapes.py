@@ -43,7 +43,6 @@ class ConstantSpec(AxisSpec):
         self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: dict[str, int]
     ) -> IncompatibleShapeError:
         return IncompatibleShapeError(
-            # f"Expected dimension {self.value} but got {axis_dimension}"
             f"Expected dimension {self.spec} in {kwarg} to have dimension {self.spec} but got {axis_dimension}"
         )
 
@@ -174,7 +173,6 @@ class ShapeChecker:
             res = f(*args, **kwargs)
             if self.return_shape_specs is not None:
                 return_tuple = res if isinstance(res, tuple) else tuple([res])
-                # return_shape = get_shape_of_object(res)
                 optional_shape_by_return_idx = {
                     idx: get_shape_of_object(res)
                     for idx, res in enumerate(return_tuple)
@@ -184,7 +182,6 @@ class ShapeChecker:
                     for k, v in optional_shape_by_return_idx.items()
                     if v is not None
                 }
-                # raw_shape_spec_by_return_idx = {str(idx): raw_shape_spec for idx, raw_shape_spec in enumerate(return_spec)}
                 self.return_shape_specs.check_shapes(shape_by_return_idx)
             return res
 
