@@ -1,6 +1,5 @@
-from abc import ABCMeta, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Callable, Hashable, ParamSpec, Self, TypeVar
+from typing import Any, Callable, Hashable, ParamSpec, Protocol, Self, TypeVar
 
 T = TypeVar("T")
 P = ParamSpec("P")
@@ -13,19 +12,12 @@ class IncompatibleShapeError(Exception):
     pass
 
 
-@dataclass(frozen=True)
-class AxisSpec(metaclass=ABCMeta):
-    spec: Any
+class AxisSpec(Protocol):
+    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool: ...
 
-    @abstractmethod
-    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool:
-        raise NotImplementedError
-
-    @abstractmethod
     def create_error(
         self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: dict[str, int]
-    ) -> IncompatibleShapeError:
-        raise NotImplementedError
+    ) -> IncompatibleShapeError: ...
 
 
 @dataclass(frozen=True)
