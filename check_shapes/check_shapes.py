@@ -18,9 +18,7 @@ class AxisSpec(metaclass=ABCMeta):
     spec: Any
 
     @abstractmethod
-    def validate(
-        self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]
-    ) -> bool:
+    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool:
         raise NotImplementedError
 
     @abstractmethod
@@ -34,9 +32,7 @@ class AxisSpec(metaclass=ABCMeta):
 class ConstantSpec(AxisSpec):
     spec: int
 
-    def validate(
-        self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]
-    ) -> bool:
+    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool:
         return self.spec == axis_dimension
 
     def create_error(
@@ -51,9 +47,7 @@ class ConstantSpec(AxisSpec):
 class SymbolSpec(AxisSpec):
     spec: str
 
-    def validate(
-        self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]
-    ) -> bool:
+    def validate(self, axis_dimension: int, dimension_by_symbol_spec: dict[str, int]) -> bool:
         if self.spec not in dimension_by_symbol_spec:
             dimension_by_symbol_spec[self.spec] = axis_dimension
             return True
@@ -98,15 +92,11 @@ class ShapeSpecCollection:
     dimension_by_symbol_spec: DimensionBySymbolDict = field(default_factory=dict)
 
     @classmethod
-    def from_dict_of_raw_shape_specs(
-        cls, raw_shape_specs_by_id: dict[Hashable, RawShapeSpec]
-    ) -> Self:
+    def from_dict_of_raw_shape_specs(cls, raw_shape_specs_by_id: dict[Hashable, RawShapeSpec]) -> Self:
         def parse_raw_shape_spec_to_shape_spec(
             raw_shape_spec: RawShapeSpec,
         ) -> ShapeSpec:
-            return ShapeSpec(
-                tuple(parse_raw_axis_spec_to_axis_spec(axis) for axis in raw_shape_spec)
-            )
+            return ShapeSpec(tuple(parse_raw_axis_spec_to_axis_spec(axis) for axis in raw_shape_spec))
 
         shapes_by_id = {
             shape_id: parse_raw_shape_spec_to_shape_spec(raw_shape_spec)
@@ -127,9 +117,7 @@ class ShapeSpecCollection:
 
         for shape_id, shape in shape_by_id.items():
             if not check_shape(shape_id, shape):
-                raise IncompatibleShapeError(
-                    f"Shape {shape=} does not match {shape_id=}"
-                )
+                raise IncompatibleShapeError(f"Shape {shape=} does not match {shape_id=}")
 
 
 def get_shape_of_object(object: Any) -> tuple[int] | None:
@@ -151,36 +139,24 @@ class ShapeChecker:
     return_shape_specs: ShapeSpecCollection | None = None
 
     def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
-        def create_dictionary_of_shapes_by_kwarg(
-            f: Callable[P, T], *args: P.args, **kwargs: P.kwargs
-        ) -> ShapeByIdDict:
+        def create_dictionary_of_shapes_by_kwarg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> ShapeByIdDict:
             d = {
-                **{
-                    k: get_shape_of_object(v)
-                    for k, v in zip(f.__code__.co_varnames, args)
-                },
+                **{k: get_shape_of_object(v) for k, v in zip(f.__code__.co_varnames, args)},
                 **kwargs,
             }
             return {k: v for k, v in d.items() if v is not None}
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             if self.kwarg_shape_specs is not None:
-                shape_by_kwarg = create_dictionary_of_shapes_by_kwarg(
-                    f, *args, **kwargs
-                )
+                shape_by_kwarg = create_dictionary_of_shapes_by_kwarg(f, *args, **kwargs)
                 self.kwarg_shape_specs.check_shapes(shape_by_kwarg)
 
             res = f(*args, **kwargs)
             if self.return_shape_specs is not None:
                 return_tuple = res if isinstance(res, tuple) else tuple([res])
-                optional_shape_by_return_idx = {
-                    idx: get_shape_of_object(res)
-                    for idx, res in enumerate(return_tuple)
-                }
+                optional_shape_by_return_idx = {idx: get_shape_of_object(res) for idx, res in enumerate(return_tuple)}
                 shape_by_return_idx: ShapeByIdDict = {
-                    k: v
-                    for k, v in optional_shape_by_return_idx.items()
-                    if v is not None
+                    k: v for k, v in optional_shape_by_return_idx.items() if v is not None
                 }
                 self.return_shape_specs.check_shapes(shape_by_return_idx)
             return res
