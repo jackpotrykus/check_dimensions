@@ -18,7 +18,6 @@ class IncompatibleShapeError(Exception):
 # fmt: off
 class AxisSpec(Protocol):
     def check_axis_dimension(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool: ...
-    def create_error(self, axis_dimension: int, kwarg: str, dimension_by_symbol: DimensionBySymbolDict) -> IncompatibleShapeError: ...
 # fmt: on
 
 
@@ -28,13 +27,6 @@ class ConstantSpec:
 
     def check_axis_dimension(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool:
         return self.spec == axis_dimension
-
-    def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol: DimensionBySymbolDict
-    ) -> IncompatibleShapeError:
-        return IncompatibleShapeError(
-            f"Expected dimension {self.spec} in {kwarg} to have dimension {self.spec} but got {axis_dimension}"
-        )
 
 
 @dataclass(frozen=True)
@@ -48,14 +40,6 @@ class SymbolSpec:
 
         target_dim = dimension_by_symbol[self.spec]
         return axis_dimension == target_dim
-
-    def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol: DimensionBySymbolDict
-    ) -> IncompatibleShapeError:
-        return IncompatibleShapeError(
-            f"Expected dimension {self.spec} in {kwarg} to have dimension {dimension_by_symbol[self.spec]} but got {axis_dimension}"
-        )
-
 
 def parse_raw_axis_spec_to_axis_spec(symbol: RawAxisSpec) -> AxisSpec:
     spec_by_type = {
