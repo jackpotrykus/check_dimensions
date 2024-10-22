@@ -152,10 +152,9 @@ class CheckShapesFunctionDecorator:
             return {k: v for k, v in {**d1, **d2}.items() if v is not None}
 
         def update_shapes_by_id(shapes_by_id: ShapeByIdDict, f: Callable[..., Any]) -> ShapeByIdDict:
-            int_keys = {k: v for k, v in shapes_by_id.items() if isinstance(k, int)}
-            str_keys = {k: v for k, v in shapes_by_id.items() if isinstance(k, str)}
+            int_keys: ShapeByIdDict = {k: v for k, v in shapes_by_id.items() if isinstance(k, int)}
+            str_keys: ShapeByIdDict = {k: v for k, v in shapes_by_id.items() if isinstance(k, str)}
             updated_shapes_by_id = {
-                **shapes_by_id,
                 **create_dict_by_arg(f, *[v for k, v in int_keys.items()]),  # type: ignore
                 **str_keys,
             }
