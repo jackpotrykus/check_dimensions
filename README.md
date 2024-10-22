@@ -9,14 +9,18 @@ import check_shapes as chk
 
 
 # Supports symbolic/dynamic axis dimensions
-@chk.args(X=("n", "p"), y=("n",)).returns(("p",))
+@chk.args(("n", "p"), ("n",)).returns(("p",))
 def calculate_regression_coefficients(X: np.ndarray, y: np.ndarray) -> np.ndarray:
     return np.linalg.inv(X.T @ X) @ X.T @ y
 
 # Specify the exact dimensions of inputs and outputs
-@chk.args(X=(3, 3)).returns((3, 3))
+@chk.args((3, 3)).returns((3, 3))
 def identity_3_3(X: np.ndarray) -> np.ndarray:
     return X
+
+# Use keyword arguments optionally/as necessary
+@chk.args(array1=("n,"), array2=("n,"))
+def long_function(a, b, c, d, array1, array2):
 
 # Can specify just the args, or just the return
 @chk.args(X=(3, 3))

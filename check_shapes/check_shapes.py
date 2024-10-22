@@ -73,6 +73,7 @@ class ShapeSpec:
     axes: tuple[AxisSpec, ...]
 
 
+# yes, str is a Hashable. but this makes the type checker happy when passing in from **kwargs
 RawShapeSpecByIdDict = dict[Hashable, RawShapeSpec]
 ShapeSpecByIdDict = dict[Hashable, ShapeSpec]
 ShapeByIdDict = dict[Hashable, tuple[int]]
@@ -126,7 +127,6 @@ def get_shape_of_object(object: Any) -> tuple[int] | None:
             object = object[0]
             dims.append(len(object))
         return tuple(dims)  # type: ignore
-    # NOTE: Should this be an error?
     return None
 
 
@@ -138,9 +138,7 @@ class ShapeChecker:
 
     def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
         def create_dictionary_of_vals_by_arg(f: Callable[P, T], *args) -> ShapeByIdDict:
-            d = {
-                **{k: get_shape_of_object(v) for k, v in zip(f.__code__.co_varnames, args)},
-            }
+            d = {k: get_shape_of_object(v) for k, v in zip(f.__code__.co_varnames, args)}
             return {k: v for k, v in d.items() if v is not None}
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
@@ -172,9 +170,8 @@ class ShapeChecker:
     def args(self, *shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
         raw_spec_by_idx = {idx: raw_spec for idx, raw_spec in enumerate(shape_spec)}
         self.arg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(raw_spec_by_idx)  # type: ignore
-        self.kwarg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(shape_spec_by_kwarg)  # type: ignore
-        return self
-    
+        return self.kwargs(**shape_spec_by_kwarg)
+
     def kwargs(self, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
         self.kwarg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(shape_spec_by_kwarg)  # type: ignore
         return self
@@ -188,8 +185,10 @@ class ShapeChecker:
 def args(*shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker().args(*shape_spec).kwargs(**shape_spec_by_kwarg)
 
+
 def kwargs(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker().kwargs(**shape_spec_by_kwarg)
+
 
 def returns(*shape_spec: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker().returns(*shape_spec)
