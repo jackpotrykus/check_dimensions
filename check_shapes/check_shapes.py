@@ -15,7 +15,7 @@ class IncompatibleShapeError(Exception):
 
 # fmt: off
 class AxisSpec(Protocol):
-    def validate(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool: ...
+    def check_axis_dimension(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool: ...
     def create_error(self, axis_dimension: int, kwarg: str, dimension_by_symbol: DimensionBySymbolDict) -> IncompatibleShapeError: ...
 # fmt: on
 
@@ -109,7 +109,7 @@ class ShapeSpecCollection:
                 return False
 
             for axis, axis_dimension in zip(shape_spec.axes, shape):
-                if not axis.validate(axis_dimension, self.dimension_by_symbol):
+                if not axis.check_axis_dimension(axis_dimension, self.dimension_by_symbol):
                     return False
             return True
 
