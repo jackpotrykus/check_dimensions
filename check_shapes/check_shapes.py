@@ -178,24 +178,22 @@ class FunctionChecker:
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             # TODO: Cleanup this mess
-            if self.arg_shape_specs is not None:
-                shape_by_arg = create_dict_of_shapes_by_arg(f, *args, **kwargs)
-                print("by arg", shape_by_arg)
-                print("by id", self.arg_shape_specs.shapes_by_id)
+            shape_by_arg = create_dict_of_shapes_by_arg(f, *args, **kwargs)
+            print("by arg", shape_by_arg)
+            print("by id", self.arg_shape_specs.shapes_by_id)
 
-                self.arg_shape_specs.shapes_by_id = update_shapes_by_id(self.arg_shape_specs.shapes_by_id, f)  # type: ignore
+            self.arg_shape_specs.shapes_by_id = update_shapes_by_id(self.arg_shape_specs.shapes_by_id, f)  # type: ignore
 
-                print("by id", self.arg_shape_specs.shapes_by_id)
-                self.arg_shape_specs.check_shapes(shape_by_arg)  # type: ignore
+            print("by id", self.arg_shape_specs.shapes_by_id)
+            self.arg_shape_specs.check_shapes(shape_by_arg)  # type: ignore
 
             res = f(*args, **kwargs)
-            if self.return_shape_specs is not None:
-                return_tuple = res if isinstance(res, tuple) else (res,)
-                optional_shape_by_return_idx = {idx: get_shape_of_object(r) for idx, r in enumerate(return_tuple)}
-                shape_by_return_idx: ShapeByIdDict = {
-                    k: v for k, v in optional_shape_by_return_idx.items() if v is not None
-                }
-                self.return_shape_specs.check_shapes(shape_by_return_idx)
+            return_tuple = res if isinstance(res, tuple) else (res,)
+            optional_shape_by_return_idx = {idx: get_shape_of_object(r) for idx, r in enumerate(return_tuple)}
+            shape_by_return_idx: ShapeByIdDict = {
+                k: v for k, v in optional_shape_by_return_idx.items() if v is not None
+            }
+            self.return_shape_specs.check_shapes(shape_by_return_idx)
             return res
 
         return wrapper
