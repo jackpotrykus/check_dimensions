@@ -80,6 +80,15 @@ RawShapeSpecByIdDict = dict[Hashable, RawShapeSpec]
 ShapeSpecByIdDict = dict[Hashable, ShapeSpec]
 ShapeByIdDict = dict[Hashable, tuple[int]]
 
+def parse_raw_shape_spec_to_shape_spec(
+    raw_shape_spec: RawShapeSpec,
+) -> ShapeSpec:
+    return ShapeSpec(tuple(parse_raw_axis_spec_to_axis_spec(axis) for axis in raw_shape_spec))
+
+
+def create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id: RawShapeSpecByIdDict) -> ShapeSpecByIdDict:
+    return {shape_id: parse_raw_shape_spec_to_shape_spec(raw_shape_spec) for shape_id, raw_shape_spec in raw_shape_specs_by_id.items()}
+
 
 @dataclass
 class ShapeSpecCollection:
@@ -88,16 +97,13 @@ class ShapeSpecCollection:
 
     @classmethod
     def from_dict_of_raw_shape_specs(cls, raw_shape_specs_by_id: RawShapeSpecByIdDict) -> Self:
-        def parse_raw_shape_spec_to_shape_spec(
-            raw_shape_spec: RawShapeSpec,
-        ) -> ShapeSpec:
-            return ShapeSpec(tuple(parse_raw_axis_spec_to_axis_spec(axis) for axis in raw_shape_spec))
-
-        shapes_by_id = {
-            shape_id: parse_raw_shape_spec_to_shape_spec(raw_shape_spec)
-            for shape_id, raw_shape_spec in raw_shape_specs_by_id.items()
-        }
+        shapes_by_id = create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id)
         return cls(shapes_by_id)
+    
+    def add(self, **raw_shape_specs_by_id: RawShapeSpec) -> Self:
+        shapes_by_id = create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id)  # type: ignore
+        self.shapes_by_id = {**self.shapes_by_id, **shapes_by_id}
+        return self
 
     def check_shapes(self, shape_by_id: ShapeByIdDict) -> None:
         def check_shape(shape_id: Hashable, shape: tuple[int]) -> bool:
@@ -138,16 +144,29 @@ class FunctionChecker:
     return_shape_specs: ShapeSpecCollection | None = None
 
     def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
+        def create_dict_by_arg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> dict[str, Any]:
+            return {**{k: v for k, v in zip(f.__code__.co_varnames, args)}, **kwargs}
+
         def create_dict_of_shapes_by_arg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> ShapeByIdDict:
-            d = {
-                **{k: get_shape_of_object(v) for k, v in zip(f.__code__.co_varnames, args)},
-                **{k: get_shape_of_object(v) for k, v in kwargs.items()},
-            }
+            d = create_dict_by_arg(
+                f,
+                *[get_shape_of_object(v) for v in args],
+                **{k: get_shape_of_object(v) for k, v in kwargs.items()}
+            )  # type: ignore
+            print("d", d)
             return {k: v for k, v in d.items() if v is not None}
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
             if self.arg_shape_specs is not None:
                 shape_by_arg = create_dict_of_shapes_by_arg(f, *args, **kwargs)
+                print("by arg", shape_by_arg)
+                print("by id", self.arg_shape_specs.shapes_by_id)
+                self.arg_shape_specs.shapes_by_id = create_dict_by_arg(
+                    f, 
+                    *[v for k, v in self.arg_shape_specs.shapes_by_id.items() if isinstance(k, int)], 
+                    **{k: v for k, v in self.arg_shape_specs.shapes_by_id.items() if isinstance(k, str)},
+                )  # type: ignore
+                print("by id", self.arg_shape_specs.shapes_by_id)
                 self.arg_shape_specs.check_shapes(shape_by_arg)  # type: ignore
 
             res = f(*args, **kwargs)
@@ -164,11 +183,15 @@ class FunctionChecker:
 
     def args(self, *shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
         raw_spec_by_idx = {idx: raw_spec for idx, raw_spec in enumerate(shape_spec)}
+        print("raw spec by idx!")
+        print(raw_spec_by_idx)
         self.arg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(raw_spec_by_idx)  # type: ignore
-        return self.kwargs(**shape_spec_by_kwarg)
+        self.arg_shape_specs = self.arg_shape_specs.add(**shape_spec_by_kwarg)
+        print(self.arg_shape_specs)
+        return self
 
     def kwargs(self, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
-        self.kwarg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(shape_spec_by_kwarg)  # type: ignore
+        self.arg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(shape_spec_by_kwarg)  # type: ignore
         return self
 
     def returns(self, *shape_spec: RawShapeSpec) -> Self:
@@ -178,7 +201,7 @@ class FunctionChecker:
 
 
 def args(*shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> FunctionChecker:
-    return FunctionChecker().args(*shape_spec).kwargs(**shape_spec_by_kwarg)
+    return FunctionChecker().args(*shape_spec, **shape_spec_by_kwarg)#.kwargs(**shape_spec_by_kwarg)
 
 
 def kwargs(**shape_spec_by_kwarg: RawShapeSpec) -> FunctionChecker:
