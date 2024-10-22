@@ -68,6 +68,8 @@ def parse_raw_axis_spec_to_axis_spec(symbol: RawAxisSpec) -> AxisSpec:
     )
 
 
+# NOTE: This class can maybe be deleted... I really thought I would do something with it
+# but for now everything interesting happens in ShapeSpecCollection
 @dataclass
 class ShapeSpec:
     axes: tuple[AxisSpec, ...]
@@ -133,27 +135,20 @@ def get_shape_of_object(object: Any) -> tuple[int] | None:
 @dataclass
 class ShapeChecker:
     arg_shape_specs: ShapeSpecCollection | None = None
-    kwarg_shape_specs: ShapeSpecCollection | None = None
     return_shape_specs: ShapeSpecCollection | None = None
 
     def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
-        def create_dictionary_of_vals_by_arg(f: Callable[P, T], *args) -> ShapeByIdDict:
-            d = {k: get_shape_of_object(v) for k, v in zip(f.__code__.co_varnames, args)}
+        def create_dict_of_shapes_by_arg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> ShapeByIdDict:
+            d = {
+                **{k: get_shape_of_object(v) for k, v in zip(f.__code__.co_varnames, args)},
+                **{k: get_shape_of_object(v) for k, v in kwargs.items()},
+            }
             return {k: v for k, v in d.items() if v is not None}
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
-            # TODO: Clean this up...
             if self.arg_shape_specs is not None:
-                # shape_by_arg = create_dictionary_of_vals_by_arg(f, *args)
-                shape_by_arg = {idx: get_shape_of_object(arg) for idx, arg in enumerate(args)}
-                shape_by_arg = {k: v for k, v in shape_by_arg.items() if v is not None}
+                shape_by_arg = create_dict_of_shapes_by_arg(f, *args, **kwargs)
                 self.arg_shape_specs.check_shapes(shape_by_arg)  # type: ignore
-
-            if self.kwarg_shape_specs is not None:
-                shape_by_kwarg = {k: get_shape_of_object(v) for k, v in kwargs.items()}
-                shape_by_kwarg = {k: v for k, v in shape_by_kwarg.items() if v is not None}
-                shape_by_kwarg = {**shape_by_kwarg, **create_dictionary_of_vals_by_arg(f, *args)}
-                self.kwarg_shape_specs.check_shapes(shape_by_kwarg)  # type: ignore
 
             res = f(*args, **kwargs)
             if self.return_shape_specs is not None:
