@@ -41,6 +41,7 @@ class SymbolSpec:
         target_dim = dimension_by_symbol[self.spec]
         return axis_dimension == target_dim
 
+
 def parse_raw_axis_spec_to_axis_spec(symbol: RawAxisSpec) -> AxisSpec:
     spec_by_type = {
         int: ConstantSpec,
