@@ -24,7 +24,7 @@ class AxisSpec(Protocol):
 class ConstantSpec:
     spec: int
 
-    def validate(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool:
+    def check_axis_dimension(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool:
         return self.spec == axis_dimension
 
     def create_error(
@@ -39,7 +39,7 @@ class ConstantSpec:
 class SymbolSpec:
     spec: str
 
-    def validate(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool:
+    def check_axis_dimension(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool:
         if self.spec not in dimension_by_symbol:
             dimension_by_symbol[self.spec] = axis_dimension
             return True
