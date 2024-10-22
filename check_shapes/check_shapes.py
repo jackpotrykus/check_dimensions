@@ -153,7 +153,7 @@ def get_shape_of_object(obj: Any) -> Shape | None:
 
 
 @dataclass
-class FunctionChecker:
+class CheckShapesFunctionDecorator:
     arg_shape_specs: ArgSpecCollection = field(default_factory=ArgSpecCollection)
     return_shape_specs: ReturnSpecCollection = field(default_factory=ReturnSpecCollection)
 
@@ -213,13 +213,13 @@ class FunctionChecker:
         return self
 
 
-def args(*shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> FunctionChecker:
-    return FunctionChecker().args(*shape_spec).kwargs(**shape_spec_by_kwarg)
+def args(*shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> CheckShapesFunctionDecorator:
+    return CheckShapesFunctionDecorator().args(*shape_spec).kwargs(**shape_spec_by_kwarg)
 
 
-def kwargs(**shape_spec_by_kwarg: RawShapeSpec) -> FunctionChecker:
-    return FunctionChecker().kwargs(**shape_spec_by_kwarg)
+def kwargs(**shape_spec_by_kwarg: RawShapeSpec) -> CheckShapesFunctionDecorator:
+    return CheckShapesFunctionDecorator().kwargs(**shape_spec_by_kwarg)
 
 
-def returns(*shape_spec: RawShapeSpec) -> FunctionChecker:
-    return FunctionChecker().returns(*shape_spec)
+def returns(*shape_spec: RawShapeSpec) -> CheckShapesFunctionDecorator:
+    return CheckShapesFunctionDecorator().returns(*shape_spec)
