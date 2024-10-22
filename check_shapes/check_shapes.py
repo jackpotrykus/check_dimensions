@@ -13,23 +13,22 @@ class IncompatibleShapeError(Exception):
     pass
 
 
+# fmt: off
 class AxisSpec(Protocol):
-    def validate(self, axis_dimension: int, dimension_by_symbol_spec: DimensionBySymbolDict) -> bool: ...
-
-    def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict
-    ) -> IncompatibleShapeError: ...
+    def validate(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool: ...
+    def create_error(self, axis_dimension: int, kwarg: str, dimension_by_symbol: DimensionBySymbolDict) -> IncompatibleShapeError: ...
+# fmt: on
 
 
 @dataclass(frozen=True)
-class ConstantSpec(AxisSpec):
+class ConstantSpec:
     spec: int
 
-    def validate(self, axis_dimension: int, dimension_by_symbol_spec: DimensionBySymbolDict) -> bool:
+    def validate(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool:
         return self.spec == axis_dimension
 
     def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict
+        self, axis_dimension: int, kwarg: str, dimension_by_symbol: DimensionBySymbolDict
     ) -> IncompatibleShapeError:
         return IncompatibleShapeError(
             f"Expected dimension {self.spec} in {kwarg} to have dimension {self.spec} but got {axis_dimension}"
@@ -37,22 +36,22 @@ class ConstantSpec(AxisSpec):
 
 
 @dataclass(frozen=True)
-class SymbolSpec(AxisSpec):
+class SymbolSpec:
     spec: str
 
-    def validate(self, axis_dimension: int, dimension_by_symbol_spec: DimensionBySymbolDict) -> bool:
-        if self.spec not in dimension_by_symbol_spec:
-            dimension_by_symbol_spec[self.spec] = axis_dimension
+    def validate(self, axis_dimension: int, dimension_by_symbol: DimensionBySymbolDict) -> bool:
+        if self.spec not in dimension_by_symbol:
+            dimension_by_symbol[self.spec] = axis_dimension
             return True
 
-        target_dim = dimension_by_symbol_spec[self.spec]
+        target_dim = dimension_by_symbol[self.spec]
         return axis_dimension == target_dim
 
     def create_error(
-        self, axis_dimension: int, kwarg: str, dimension_by_symbol_spec: DimensionBySymbolDict
+        self, axis_dimension: int, kwarg: str, dimension_by_symbol: DimensionBySymbolDict
     ) -> IncompatibleShapeError:
         return IncompatibleShapeError(
-            f"Expected dimension {self.spec} in {kwarg} to have dimension {dimension_by_symbol_spec[self.spec]} but got {axis_dimension}"
+            f"Expected dimension {self.spec} in {kwarg} to have dimension {dimension_by_symbol[self.spec]} but got {axis_dimension}"
         )
 
 
@@ -82,7 +81,7 @@ ShapeByIdDict = dict[Hashable, tuple[int]]
 @dataclass
 class ShapeSpecCollection:
     shapes_by_id: ShapeSpecByIdDict
-    dimension_by_symbol_spec: DimensionBySymbolDict = field(default_factory=dict)
+    dimension_by_symbol: DimensionBySymbolDict = field(default_factory=dict)
 
     @classmethod
     def from_dict_of_raw_shape_specs(cls, raw_shape_specs_by_id: RawShapeSpecByIdDict) -> Self:
@@ -99,12 +98,17 @@ class ShapeSpecCollection:
 
     def check_shapes(self, shape_by_id: ShapeByIdDict) -> None:
         def check_shape(shape_id: Hashable, shape: tuple[int]) -> bool:
-            shape_spec = self.shapes_by_id[shape_id]
+            # shape_spec = self.shapes_by_id[shape_id]
+            shape_spec = self.shapes_by_id.get(shape_id)
+            # TODO: This is right... right??
+            if shape_spec is None:
+                return True
+
             if len(shape_spec.axes) != len(shape):
                 return False
 
             for axis, axis_dimension in zip(shape_spec.axes, shape):
-                if not axis.validate(axis_dimension, self.dimension_by_symbol_spec):
+                if not axis.validate(axis_dimension, self.dimension_by_symbol):
                     return False
             return True
 
@@ -128,21 +132,30 @@ def get_shape_of_object(object: Any) -> tuple[int] | None:
 
 @dataclass
 class ShapeChecker:
+    arg_shape_specs: ShapeSpecCollection | None = None
     kwarg_shape_specs: ShapeSpecCollection | None = None
     return_shape_specs: ShapeSpecCollection | None = None
 
     def __call__(self, f: Callable[P, T]) -> Callable[P, T]:
-        def create_dictionary_of_shapes_by_kwarg(f: Callable[P, T], *args: P.args, **kwargs: P.kwargs) -> ShapeByIdDict:
+        def create_dictionary_of_vals_by_arg(f: Callable[P, T], *args) -> ShapeByIdDict:
             d = {
                 **{k: get_shape_of_object(v) for k, v in zip(f.__code__.co_varnames, args)},
-                **kwargs,
             }
             return {k: v for k, v in d.items() if v is not None}
 
         def wrapper(*args: P.args, **kwargs: P.kwargs) -> T:
+            # TODO: Clean this up...
+            if self.arg_shape_specs is not None:
+                # shape_by_arg = create_dictionary_of_vals_by_arg(f, *args)
+                shape_by_arg = {idx: get_shape_of_object(arg) for idx, arg in enumerate(args)}
+                shape_by_arg = {k: v for k, v in shape_by_arg.items() if v is not None}
+                self.arg_shape_specs.check_shapes(shape_by_arg)  # type: ignore
+
             if self.kwarg_shape_specs is not None:
-                shape_by_kwarg = create_dictionary_of_shapes_by_kwarg(f, *args, **kwargs)
-                self.kwarg_shape_specs.check_shapes(shape_by_kwarg)
+                shape_by_kwarg = {k: get_shape_of_object(v) for k, v in kwargs.items()}
+                shape_by_kwarg = {k: v for k, v in shape_by_kwarg.items() if v is not None}
+                shape_by_kwarg = {**shape_by_kwarg, **create_dictionary_of_vals_by_arg(f, *args)}
+                self.kwarg_shape_specs.check_shapes(shape_by_kwarg)  # type: ignore
 
             res = f(*args, **kwargs)
             if self.return_shape_specs is not None:
@@ -156,7 +169,13 @@ class ShapeChecker:
 
         return wrapper
 
-    def args(self, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
+    def args(self, *shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
+        raw_spec_by_idx = {idx: raw_spec for idx, raw_spec in enumerate(shape_spec)}
+        self.arg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(raw_spec_by_idx)  # type: ignore
+        self.kwarg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(shape_spec_by_kwarg)  # type: ignore
+        return self
+    
+    def kwargs(self, **shape_spec_by_kwarg: RawShapeSpec) -> Self:
         self.kwarg_shape_specs = ShapeSpecCollection.from_dict_of_raw_shape_specs(shape_spec_by_kwarg)  # type: ignore
         return self
 
@@ -166,9 +185,11 @@ class ShapeChecker:
         return self
 
 
-def args(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
-    return ShapeChecker().args(**shape_spec_by_kwarg)
+def args(*shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
+    return ShapeChecker().args(*shape_spec).kwargs(**shape_spec_by_kwarg)
 
+def kwargs(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
+    return ShapeChecker().kwargs(**shape_spec_by_kwarg)
 
 def returns(*shape_spec: RawShapeSpec) -> ShapeChecker:
     return ShapeChecker().returns(*shape_spec)

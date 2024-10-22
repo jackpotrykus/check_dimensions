@@ -1,3 +1,3 @@
-from check_shapes.check_shapes import args, returns
+from check_shapes.check_shapes import args, kwargs, returns
 
-__all__ = ["args", "returns"]
+__all__ = ["args", "kwargs", "returns"]
