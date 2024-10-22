@@ -20,7 +20,7 @@ def identity_3_3(X: np.ndarray) -> np.ndarray:
 
 # Use keyword arguments optionally/as necessary
 @chk.args(array1=("n,"), array2=("n,"))
-def long_function(a, b, c, d, array1, array2):
+def long_function(a, b, c, d, array1, array2): ...
 
 # Can specify just the args, or just the return
 @chk.args(X=(3, 3))
