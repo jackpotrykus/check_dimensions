@@ -137,6 +137,8 @@ def get_shape_of_object(obj: Any) -> Shape | None:
     return None
 
 
+
+
 @dataclass
 class CheckShapesFunctionDecorator:
     arg_shape_specs: ArgSpecCollection = field(default_factory=ArgSpecCollection)
