@@ -133,7 +133,7 @@ def get_shape_of_object(object: Any) -> tuple[int] | None:
 
 
 @dataclass
-class ShapeChecker:
+class FunctionChecker:
     arg_shape_specs: ShapeSpecCollection | None = None
     return_shape_specs: ShapeSpecCollection | None = None
 
@@ -177,13 +177,13 @@ class ShapeChecker:
         return self
 
 
-def args(*shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
-    return ShapeChecker().args(*shape_spec).kwargs(**shape_spec_by_kwarg)
+def args(*shape_spec: RawShapeSpec, **shape_spec_by_kwarg: RawShapeSpec) -> FunctionChecker:
+    return FunctionChecker().args(*shape_spec).kwargs(**shape_spec_by_kwarg)
 
 
-def kwargs(**shape_spec_by_kwarg: RawShapeSpec) -> ShapeChecker:
-    return ShapeChecker().kwargs(**shape_spec_by_kwarg)
+def kwargs(**shape_spec_by_kwarg: RawShapeSpec) -> FunctionChecker:
+    return FunctionChecker().kwargs(**shape_spec_by_kwarg)
 
 
-def returns(*shape_spec: RawShapeSpec) -> ShapeChecker:
-    return ShapeChecker().returns(*shape_spec)
+def returns(*shape_spec: RawShapeSpec) -> FunctionChecker:
+    return FunctionChecker().returns(*shape_spec)
