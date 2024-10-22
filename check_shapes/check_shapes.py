@@ -106,15 +106,8 @@ class ShapeSpecCollection(metaclass=ABCMeta):
     dimension_by_symbol: DimensionBySymbolDict = field(default_factory=dict)
 
     @classmethod
-    @abstractmethod
     def from_dict_of_identifiers(cls, raw_shape_specs_by_id: RawShapeSpecByIdDict) -> Self:
-        raise NotImplementedError()
-        # shapes_by_id = create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id)
-        # return cls(shapes_by_id)
-
-        # @classmethod
-        # def from_dict_of_raw_shape_specs(cls, raw_shape_specs_by_id: RawShapeSpecByIdDict) -> Self:
-        #     shapes_by_id = create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id)
+        shapes_by_id = create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id)
         return cls(shapes_by_id)
 
     def add(self, **raw_shape_specs_by_id: RawShapeSpec) -> Self:
@@ -144,17 +137,11 @@ class ShapeSpecCollection(metaclass=ABCMeta):
 
 
 class ArgSpecCollection(ShapeSpecCollection):
-    @classmethod
-    def from_dict_of_identifiers(cls, raw_shape_specs_by_id: RawShapeSpecByIdDict) -> Self:
-        shapes_by_id = create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id)
-        return cls(shapes_by_id)
+    pass
 
 
 class ReturnSpecCollection(ShapeSpecCollection):
-    @classmethod
-    def from_dict_of_identifiers(cls, raw_shape_specs_by_id: RawShapeSpecByIdDict) -> Self:
-        shapes_by_id = create_shapes_by_id_from_raw_shape_specs(raw_shape_specs_by_id)
-        return cls(shapes_by_id)
+    pass
 
 
 def get_shape_of_object(obj: Any) -> Shape | None:
