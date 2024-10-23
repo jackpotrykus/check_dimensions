@@ -121,6 +121,8 @@ class ShapeSpecCollection(metaclass=ABCMeta):
                 raise IncompatibleShapeError(f"Shape {shape=} does not match {shape_id=}")
 
 
+# NOTE: Ok so these have to go...
+# Should just be one class that does everything
 class ArgSpecCollection(ShapeSpecCollection):
     pass
 
