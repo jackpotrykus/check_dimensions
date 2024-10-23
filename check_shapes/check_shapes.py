@@ -179,6 +179,8 @@ class CheckShapesFunctionDecorator:
             shape_by_return_idx: ShapeByIdDict = {
                 k: v for k, v in optional_shape_by_return_idx.items() if v is not None
             }
+            # Add in the shape specs from the arguments
+            self.return_shape_specs.dimension_by_symbol.update(self.arg_shape_specs.dimension_by_symbol)
             self.return_shape_specs.check_shapes(shape_by_return_idx)
             return res
 
